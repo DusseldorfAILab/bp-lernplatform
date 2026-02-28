@@ -639,6 +639,9 @@ export async function POST(request: Request) {
         let modulesToSave: LearningModule[] = [];
         let overviewToSave = "";
 
+        // Fetch User to link progress
+        const { data: { user } } = await supabase.auth.getUser();
+
         if (Array.isArray(result)) {
           modulesToSave = result;
         } else if ((result as any).modules) {
@@ -651,6 +654,7 @@ export async function POST(request: Request) {
           .from('user_progress')
           .upsert({
             application_id: applicationId,
+            ...(user?.id ? { user_id: user.id } : {}),
             status: 'interview_completed',
             interview_transcript: transcript,
             training_overview: overviewToSave,

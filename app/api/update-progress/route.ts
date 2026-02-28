@@ -11,6 +11,9 @@ export async function POST(req: Request) {
 
         const supabase = createClient();
 
+        // Fetch User to link progress
+        const { data: { user } } = await supabase.auth.getUser();
+
         // 1. Fetch current progress to check status update needs
         const { data: currentProgress, error: fetchError } = await supabase
             .from('user_progress')
@@ -60,9 +63,14 @@ export async function POST(req: Request) {
         const allOthersCompleted = modules.every((m, idx) => idx === moduleIndex ? isCompleted : m.status === 'completed');
 
         if (allOthersCompleted && currentProgress.status !== 'training_completed') {
+            const updatePayload: any = { status: 'training_completed' };
+            if (user?.id) {
+                updatePayload.user_id = user.id;
+            }
+
             await supabase
                 .from('user_progress')
-                .update({ status: 'training_completed' })
+                .update(updatePayload)
                 .eq('application_id', applicationId);
         }
 
