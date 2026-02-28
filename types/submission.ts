@@ -3,7 +3,7 @@ export interface ReadinessScores {
   teamCompetence: number // Competencies & experience in founding team
   teamDynamics: number // Team dynamics & cohesion
 
-  // Organization readiness dimensions
+  // Organization readiness dimensions 
   organization: number // Structures & processes
   leadership: number // Leadership & decision making
   processes: number // Financial & business processes
