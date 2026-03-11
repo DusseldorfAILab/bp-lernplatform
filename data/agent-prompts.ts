@@ -5,7 +5,7 @@
 // IMPORTANT: The customer MUST mention "Rezept" early so the prescription
 // card appears in the chat UI.
 // These prompts are meant to be copied into the ElevenLabs dashboard
-// for each agent configuration.
+// for each agent configuration. 
 // ============================================================
 
 export const agentPrompts: Record<string, { name: string; prompt: string }> = {
