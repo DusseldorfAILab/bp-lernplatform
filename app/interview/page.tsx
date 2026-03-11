@@ -1,33 +1,40 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ConvAI from "@/components/ConvAI";
 import { BackgroundWave } from "@/components/background-wave";
+import { PrescriptionCard } from "@/components/PrescriptionCard";
+import { ConsultationTracker, analyzeTranscript } from "@/components/ConsultationTracker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Timer, Pill, Sparkles, Loader2, Zap, Heart, Users } from "lucide-react";
+import { Timer, Pill, Sparkles, Loader2, FileText, ShoppingBag, Info } from "lucide-react";
+import { getScenarioById, simulationScenarios } from "@/data/simulation-scenarios";
+import type { SimulationScenario } from "@/data/simulation-scenarios";
+import { createClient } from "@/lib/supabase/client";
 
 export default function InterviewPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const applicationId = searchParams.get("applicationId");
+  const scenarioId = searchParams.get("scenarioId") || "diuretikum";
+
+  // Load scenario
+  const scenario: SimulationScenario | undefined = useMemo(
+    () => getScenarioById(scenarioId) || simulationScenarios[0],
+    [scenarioId]
+  );
 
   const [isConnected, setIsConnected] = useState(false);
   const [timeLeft, setTimeLeft] = useState(10 * 60);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [endSignal, setEndSignal] = useState<number | undefined>(undefined);
-  const [transcript, setTranscript] = useState<Array<{ role: "user" | "ai"; text: string; timestamp: string }>>([]);
-  const [showIntro, setShowIntro] = useState(false);
+  const [transcript, setTranscript] = useState<Array<{ role: "user" | "ai" | "prescription"; text: string; timestamp: string }>>([]);
+  const [showIntro, setShowIntro] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  useEffect(() => {
-    try {
-      const seen = typeof window !== "undefined" ? localStorage.getItem("pharmacy_magnesium_intro_seen") : "true";
-      if (!seen) setShowIntro(true);
-    } catch { }
-  }, []);
+  const prescriptionShownRef = useRef(false);
+  const sessionStartRef = useRef<number>(Date.now());
 
   useEffect(() => {
     if (!isConnected) return;
@@ -41,58 +48,95 @@ export default function InterviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, isTimerActive, timeLeft]);
 
-  // Auto-scroll to bottom when transcript changes
+  // Auto-scroll transcript
   useEffect(() => {
     const el = document.getElementById("transcriptScroll");
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
+    if (el) el.scrollTop = el.scrollHeight;
   }, [transcript]);
 
   const handleEndInterview = useCallback(async () => {
-    console.log("🛑 handleEndInterview aufgerufen");
-
-    // ✅ Zeige sofort "Analyzing" (User sieht Ladescreen statt Interview)
     setIsAnalyzing(true);
     setIsTimerActive(false);
-
-    // ✅ Stoppe den Agent
     setEndSignal(Date.now());
 
-    // ✅ Warte 3 Sekunden - Agent stoppt in dieser Zeit
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     const params = new URLSearchParams(searchParams);
+    // Pass scenarioId to the completion page
+    if (scenarioId) params.set("scenarioId", scenarioId);
     const nextPath = `/completion_distribution?${params.toString()}`;
 
     if (!transcript || transcript.length === 0) {
       if (typeof window !== "undefined") {
         sessionStorage.removeItem('dynamicLearningData');
+        sessionStorage.removeItem('consultationScore');
       }
       router.push(nextPath);
       return;
     }
 
     try {
-      // Fallback applicationId if missing (e.g. manual navigation)
       const appIdToUse = applicationId || crypto.randomUUID();
-      console.log("Saving interview for applicationId:", appIdToUse);
 
-      const response = await fetch(`/api/analyze-transcript?type=pharmacy_magnesium&includeOverview=true`, {
+      // Calculate the consultation score from tracking
+      let scoreData = null;
+      if (scenario) {
+        scoreData = analyzeTranscript(scenario, transcript);
+        sessionStorage.setItem('consultationScore', JSON.stringify(scoreData));
+      }
+
+      // Save consultation session to Supabase
+      if (scoreData && scenario) {
+        try {
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+
+          await supabase.from("consultation_sessions").insert({
+            user_id: user?.id ?? null,
+            scenario_id: scenarioId,
+            scenario_title: scenario.coachingCard.title,
+            agent_key: scenario.agentKey,
+            score: scoreData.score,
+            max_score: scoreData.maxScore,
+            percentage: scoreData.percentage,
+            phases_completed: scoreData.phasesCompleted,
+            phases_total: scoreData.phasesTotal,
+            completed_phases: scoreData.completedPhases,
+            missed_phases: scoreData.missedPhases,
+            products_recommended: scoreData.productsRecommended,
+            products_total: scoreData.productsTotal,
+            recommended_products: scoreData.recommendedProducts,
+            missed_products: scoreData.missedProducts,
+            transcript: transcript,
+            duration_seconds: durationSeconds,
+          });
+        } catch (err) {
+          console.error("Failed to save consultation session:", err);
+        }
+      }
+
+      // Use the scenario's agentKey as the analysis type
+      const analysisType = scenario?.agentKey || "pharmacy_magnesium";
+
+      const response = await fetch(`/api/analyze-transcript?type=${analysisType}&includeOverview=true`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript, applicationId: appIdToUse }),
+        body: JSON.stringify({
+          transcript,
+          applicationId: appIdToUse,
+          // Pass scoring data so the AI can reference it
+          consultationScore: scoreData,
+          scenarioId,
+        }),
       });
 
       if (response.ok) {
         const data = await response.json();
-
         if (Array.isArray(data)) {
-          // Backward compatibility
           sessionStorage.setItem('dynamicLearningData', JSON.stringify(data));
           sessionStorage.removeItem('dynamicLearningOverview');
         } else if (data.modules) {
-          // New format
           sessionStorage.setItem('dynamicLearningData', JSON.stringify(data.modules));
           if (data.overview) {
             sessionStorage.setItem('dynamicLearningOverview', data.overview);
@@ -102,23 +146,21 @@ export default function InterviewPage() {
         sessionStorage.removeItem('dynamicLearningData');
         sessionStorage.removeItem('dynamicLearningOverview');
       }
-    } catch (error) {
+    } catch {
       if (typeof window !== "undefined") {
         sessionStorage.removeItem('dynamicLearningData');
       }
     }
 
     router.push(nextPath);
-  }, [applicationId, router, searchParams, transcript]);
+  }, [applicationId, router, scenario, scenarioId, searchParams, transcript]);
 
   const onConnect = useCallback(() => {
-    console.log("✅ onConnect callback - Setting isConnected to true");
     setIsConnected(true);
     setIsTimerActive(true);
   }, []);
 
   const onDisconnect = useCallback(() => {
-    console.log("❌ onDisconnect callback - Setting isConnected to false");
     setIsConnected(false);
     setIsTimerActive(false);
   }, []);
@@ -127,19 +169,24 @@ export default function InterviewPage() {
     const m = message as { message: string; source: "user" | "ai" };
     if (!m?.message || !m?.source) return;
 
-    console.log(`💬 Message received from ${m.source}:`, m.message);
+    const now = new Date().toISOString();
+    const newEntries: Array<{ role: "user" | "ai" | "prescription"; text: string; timestamp: string }> = [
+      { role: m.source, text: m.message, timestamp: now },
+    ];
 
-    setTranscript((prev) => [
-      ...prev,
-      { role: m.source, text: m.message, timestamp: new Date().toISOString() },
-    ]);
+    // If AI mentions "Rezept" and we haven't shown the prescription yet, inject it
+    if (m.source === "ai" && !prescriptionShownRef.current) {
+      const lower = m.message.toLowerCase();
+      if (lower.includes("rezept") || lower.includes("verordnung") || lower.includes("verschrieben")) {
+        prescriptionShownRef.current = true;
+        newEntries.push({ role: "prescription", text: "", timestamp: now });
+      }
+    }
+
+    setTranscript((prev) => [...prev, ...newEntries]);
 
     const el = document.getElementById("transcriptScroll");
-    if (el) {
-      setTimeout(() => {
-        el.scrollTop = el.scrollHeight;
-      }, 0);
-    }
+    if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 0);
   }, []);
 
   const formatTime = (seconds: number) => {
@@ -150,40 +197,44 @@ export default function InterviewPage() {
 
   if (isAnalyzing) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 text-brand animate-spin mx-auto" />
-          <h2 className="text-xl font-semibold text-gray-900">Analysiere dein Gespräch...</h2>
-          <p className="text-gray-600">Die KI erstellt personalisierte Lernmodule für dich.</p>
+      <div className="min-h-screen page-gradient flex items-center justify-center">
+        <div className="text-center space-y-5">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand to-brand-accent flex items-center justify-center mx-auto shadow-lg shadow-brand/20">
+            <Loader2 className="w-10 h-10 text-white animate-spin" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900">Analysiere dein Beratungsgespraech...</h2>
+          <p className="text-gray-500">Die KI wertet deine Empfehlungen und Gespraechsfuehrung aus.</p>
         </div>
       </div>
     );
   }
 
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="min-h-screen page-gradient relative overflow-hidden">
+      <header className="relative glass border-b border-white/50 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-5">
-              <div className="w-16 h-16 bg-gradient-to-br from-brand to-brand-accent rounded-lg flex items-center justify-center shadow-md">
-                <Pill className="w-8 h-8 text-white" />
+            <div className="flex items-center space-x-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-brand to-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand/20">
+                <Pill className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Beratungssimulation</h1>
-                <div className="flex items-center space-x-2 mt-1">
-                  <p className="text-gray-600 font-medium">Szenario: Magnesiumcitrat 130</p>
+                <h1 className="text-xl font-bold text-gray-900">Beratungssimulation</h1>
+                <div className="flex items-center space-x-2 mt-0.5">
+                  <p className="text-sm text-gray-600 font-medium">
+                    {scenario?.coachingCard.title || "Magnesiumcitrat 130"}:
+                    {" "}{scenario?.coachingCard.subtitle}
+                  </p>
                   <Badge
                     variant="outline"
                     className={`px-2 py-0.5 text-xs ${isConnected ? "border-green-500 text-green-600 bg-green-50" : "border-gray-300 text-gray-600 bg-gray-50"}`}
                   >
-                    {isConnected ? "● Gespräch läuft" : "○ Bereit"}
+                    {isConnected ? "Gespraech laeuft" : "Bereit"}
                   </Badge>
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               {isConnected && (
                 <Badge variant="destructive" className="font-medium tabular-nums py-1 px-3 text-base bg-red-100 text-red-700 border-red-200 hover:bg-red-200">
                   <Timer className="w-4 h-4 mr-2" />
@@ -199,8 +250,9 @@ export default function InterviewPage() {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <Dialog open={showIntro} onOpenChange={(v) => { setShowIntro(v); if (!v) { try { localStorage.setItem("pharmacy_magnesium_intro_seen", "true"); } catch { } } }}>
+      <main className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Intro Dialog */}
+        <Dialog open={showIntro} onOpenChange={setShowIntro}>
           <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -209,24 +261,40 @@ export default function InterviewPage() {
               </DialogTitle>
               <DialogDescription>
                 <div className="space-y-3 pt-3 text-gray-700 text-base">
-                  <p>Ein Kunde betritt die Apotheke. Er klagt über Wadenkrämpfe, Müdigkeit oder sucht etwas zur Entspannung. Deine Ziele:</p>
-                  <ul className="list-disc pl-5 space-y-2 text-sm">
+                  <p>
+                    Ein Kunde betritt die Apotheke mit einem Rezept fuer{" "}
+                    <strong>{scenario?.prescription.medication}</strong>.
+                    Deine Aufgabe:
+                  </p>
+                  <ul className="space-y-2 text-sm">
                     <li className="flex items-start gap-2">
-                      <Users className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
-                      <span><strong>Zielgruppen erkennen:</strong> Wadenkrämpfe, Diuretika-Einnahme, Sportler, Stress</span>
+                      <FileText className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+                      <span><strong>Rezept annehmen</strong> und den Kunden zum Medikament beraten</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Zap className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
-                      <span><strong>Produktvorteile nennen:</strong> Citratform = hohe Bioverfügbarkeit, Apothekenqualität</span>
+                      <Info className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+                      <span><strong>Wissen abfragen:</strong> Kennt der Kunde das Medikament bereits?</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Heart className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
-                      <span><strong>Cross-Selling:</strong> B-Vitamine, Q10, Calcium wenn passend</span>
+                      <ShoppingBag className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
+                      <span><strong>Zusatzempfehlungen:</strong> Passende Produkte empfehlen, die das Medikament ergaenzen</span>
                     </li>
-                    <li>Souverän auf Einwände reagieren (Preis, "Ich esse gesund")</li>
                   </ul>
-                  <div className="bg-brand/10 p-3 rounded-md text-sm text-gray-800 mt-2 border border-brand/20">
-                    <strong>💡 Tipp:</strong> Bei Diuretika-Patienten ist Magnesium besonders wichtig, da diese Medikamente den Magnesiumverlust erhöhen!
+
+                  {/* Show products they should recommend */}
+                  {scenario && (
+                    <div className="bg-brand/10 p-3 rounded-lg text-sm text-gray-800 border border-brand/20">
+                      <strong>Moegliche Zusatzempfehlungen:</strong>
+                      <ul className="mt-1 space-y-0.5">
+                        {scenario.upsellPaths.map((p, i) => (
+                          <li key={i}>- {p.productName}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="bg-amber-50 p-3 rounded-lg text-sm text-amber-800 border border-amber-200">
+                    <strong>Hinweis:</strong> Bitte nutze die Sprachberatung in einer ruhigen Umgebung. Das Rezept wird dir waehrend des Gespraechs angezeigt.
                   </div>
                 </div>
               </DialogDescription>
@@ -234,7 +302,7 @@ export default function InterviewPage() {
             <DialogFooter>
               <Button
                 className="bg-gradient-to-r from-brand to-brand-accent hover:from-brand-dark hover:to-brand text-white shadow-md hover:shadow-lg transition-all"
-                onClick={() => { setShowIntro(false); try { localStorage.setItem("pharmacy_magnesium_intro_seen", "true"); } catch { } }}
+                onClick={() => setShowIntro(false)}
               >
                 Simulation starten
               </Button>
@@ -242,21 +310,26 @@ export default function InterviewPage() {
           </DialogContent>
         </Dialog>
 
-        <div className={isConnected ? "grid grid-cols-1 md:grid-cols-2 gap-8 items-start h-[calc(100vh-200px)]" : "flex flex-col items-center"}>
-          <div className={isConnected ? "w-full h-full flex flex-col" : "w-full md:w-1/2"}>
-            <div className={isConnected ? "relative rounded-3xl overflow-hidden shadow-lg border border-gray-200 bg-white" : ""}>
+        {/* Main layout */}
+        <div className={isConnected
+          ? "grid grid-cols-1 lg:grid-cols-[1fr_320px_1fr] gap-6 items-start"
+          : "flex flex-col items-center"
+        }>
+          {/* Left: ConvAI + Buttons */}
+          <div className={isConnected ? "w-full flex flex-col" : "w-full md:w-1/2"}>
+            <div className={isConnected ? "relative rounded-3xl overflow-hidden shadow-xl border border-white/60 bg-white/90 backdrop-blur-sm" : ""}>
               <ConvAI
                 onConnect={onConnect}
                 onDisconnect={onDisconnect}
                 onMessage={onMessage}
                 onEnded={() => { }}
                 endSignal={endSignal}
-                agentKey="pharmacy_magnesium"
+                agentKey={scenario?.agentKey || "pharmacy_magnesium"}
                 avatarSrc=""
                 hideTranscript
               />
             </div>
-            <div className={isConnected ? "mt-6 flex justify-center" : "mt-8 flex justify-center"}>
+            <div className={isConnected ? "mt-4 flex justify-center" : "mt-6 flex justify-center"}>
               {isConnected ? (
                 <Button
                   className="rounded-full bg-red-600 hover:bg-red-700 text-white px-8 shadow-lg hover:shadow-xl transition-all hover:scale-105"
@@ -272,16 +345,30 @@ export default function InterviewPage() {
                   size="lg"
                   onClick={handleEndInterview}
                 >
-                  Überspringen / Beenden
+                  Ueberspringen / Beenden
                 </Button>
               )}
             </div>
           </div>
 
+          {/* Center: Prescription + Tracker (only when connected) */}
+          {isConnected && scenario && (
+            <div className="w-full space-y-4">
+              {/* Consultation tracker */}
+              <div className="rounded-2xl border border-white/60 bg-white/90 backdrop-blur-sm shadow-lg p-4">
+                <ConsultationTracker
+                  scenario={scenario}
+                  transcript={transcript}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Right: Transcript (only when connected) */}
           {isConnected && (
-            <div className="w-full h-full">
-              <div className="rounded-3xl border border-gray-200 bg-white shadow-lg p-5 h-[800px] flex flex-col" id="transcriptPanel">
-                <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+            <div className="w-full">
+              <div className="rounded-3xl border border-white/60 bg-white/90 backdrop-blur-sm shadow-xl p-5 h-[700px] flex flex-col" id="transcriptPanel">
+                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
                   <div className="text-sm font-bold text-gray-800 flex items-center">
                     <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>
                     Live Transkript
@@ -289,29 +376,97 @@ export default function InterviewPage() {
                   <span className="text-xs text-gray-400">Wird automatisch erstellt</span>
                 </div>
 
-                <div className="flex-grow overflow-auto min-h-0 rounded-xl p-4 text-sm bg-gray-50 space-y-4" id="transcriptScroll">
+                <div className="flex-grow overflow-auto min-h-0 rounded-xl p-3 text-base bg-gray-50 space-y-3" id="transcriptScroll">
                   {transcript.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400 italic">
                       <Sparkles className="w-8 h-8 mb-2 opacity-20" />
-                      <p>Das Gespräch beginnt...</p>
+                      <p>Das Gespraech beginnt...</p>
                     </div>
                   ) : (
-                    <ul className="space-y-4">
-                      {transcript.map((m, i) => (
-                        <li key={i} className={"flex " + (m.role === "user" ? "justify-end" : "justify-start")}>
-                          <div className={
-                            "max-w-[85%] rounded-2xl px-4 py-3 shadow-sm whitespace-pre-wrap break-words " +
-                            (m.role === "user"
-                              ? "bg-brand text-white rounded-tr-none"
-                              : "bg-white border border-gray-200 text-gray-800 rounded-tl-none")
-                          }>
-                            <div className={`mb-1 text-[10px] uppercase tracking-wide font-bold ${m.role === 'user' ? 'text-white/80' : 'text-gray-400'}`}>
-                              {m.role === "user" ? "Du (PTA/Apotheker)" : "Kunde"}
+                    <ul className="space-y-3">
+                      {transcript.map((m, i) => {
+                        if (m.role === "prescription" && scenario) {
+                          // Map scenarioId to actual image filename in Supabase
+                          // (file names may differ from scenarioId, e.g. "diurethikum" vs "diuretikum")
+                          const imageNameMap: Record<string, string> = {
+                            diuretikum: "pharmacy_diurethikum_rezept",
+                            fluoridbehandlung: "pharmacy_fluoridbehandlung_rezept",
+                            "gastritis-reflux": "pharmacy_gastritis_reflux_rezept",
+                            gicht: "pharmacy_gicht_rezept",
+                            eisenmangel: "pharmacy_eisenmangelanaemie_rezept",
+                            grippeimpfstoff: "pharmacy_grippeimpfstoff_rezept",
+                            helicobacter: "pharmacy_helicobacter_rezept",
+                            hyperthyreose: "pharmacy_hyperthyreose_rezept",
+                            hypothyreose: "pharmacy_hypothyreose_rezept",
+                            kompressionsstruempfe: "pharmacy_kompressionsstruempfe_rezept",
+                          };
+                          const imageId = imageNameMap[scenarioId];
+                          const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL
+                            ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/training-assets`
+                            : "https://dgewbsyvaglfmrlaufkd.supabase.co/storage/v1/object/public/training-assets";
+                          const imageUrl = imageId ? `${supabaseBase}/${imageId}.png` : null;
+
+                          // Show image if available, otherwise fall back to PrescriptionCard
+                          return (
+                            <li key={i} className="flex justify-start">
+                              <div className="max-w-[90%]">
+                                {imageUrl ? (
+                                  <div className="rounded-2xl overflow-hidden shadow-sm">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={imageUrl}
+                                      alt="Rezept"
+                                      className="rounded-2xl max-w-full"
+                                      onLoad={() => {
+                                        const el = document.getElementById("transcriptScroll");
+                                        if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+                                      }}
+                                      onError={(e) => {
+                                        // Hide broken image, show fallback
+                                        (e.target as HTMLImageElement).style.display = "none";
+                                        const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                                        if (fallback) (fallback as HTMLElement).style.display = "block";
+                                      }}
+                                    />
+                                    <div style={{ display: "none" }}>
+                                      <PrescriptionCard
+                                        patientName={scenario.prescription.patientName}
+                                        doctorName={scenario.prescription.doctorName}
+                                        medication={scenario.prescription.medication}
+                                        dosage={scenario.prescription.dosage}
+                                        date={scenario.prescription.date}
+                                      />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <PrescriptionCard
+                                    patientName={scenario.prescription.patientName}
+                                    doctorName={scenario.prescription.doctorName}
+                                    medication={scenario.prescription.medication}
+                                    dosage={scenario.prescription.dosage}
+                                    date={scenario.prescription.date}
+                                  />
+                                )}
+                              </div>
+                            </li>
+                          );
+                        }
+                        return (
+                          <li key={i} className={"flex " + (m.role === "user" ? "justify-end" : "justify-start")}>
+                            <div className={
+                              "max-w-[90%] rounded-2xl px-4 py-3 shadow-sm whitespace-pre-wrap break-words " +
+                              (m.role === "user"
+                                ? "bg-brand text-white rounded-tr-none"
+                                : "bg-white border border-gray-200 text-gray-800 rounded-tl-none")
+                            }>
+                              <div className={`mb-1 text-xs uppercase tracking-wide font-bold ${m.role === 'user' ? 'text-white/80' : 'text-gray-400'}`}>
+                                {m.role === "user" ? "Du (PTA/Apotheker)" : "Kunde"}
+                              </div>
+                              <div className="text-sm leading-relaxed">{m.text}</div>
                             </div>
-                            <div className="text-sm leading-relaxed">{m.text}</div>
-                          </div>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>

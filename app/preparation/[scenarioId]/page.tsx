@@ -1,36 +1,107 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { useParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   CheckCircle, Lightbulb, Target, Users, ArrowRight, Info, Pill,
-  Play, Volume2,
+  Play, Volume2, ShoppingBag, FileText, MessageSquare,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { getCoachingCardById, type CoachingCard } from "@/data/coaching-cards"
+import { getScenarioById } from "@/data/simulation-scenarios"
 
-export default function PreparationPage() {
+// Video path mapping per scenario ID (Supabase Storage bucket: learning-videos)
+const videoPathMap: Record<string, string> = {
+  diuretikum: "diuretikum/pharmacy_diurethikum.mp4",
+  fluoridbehandlung: "fluoridbehandlung/pharmacy_fluoridbehandlung.mp4",
+  "gastritis-reflux": "gastritis_reflux/pharmacy_gastritis_reflux.mp4",
+  gicht: "gicht/pharmacy_gicht.mp4",
+  eisenmangel: "eisenmangelanaemie/pharmacy_eisenmangelanaemie.mp4",
+  grippeimpfstoff: "grippeimpfstoff/pharmacy_grippeimpfstoff.mp4",
+  helicobacter: "helicobacter/pharmacy_helicobacter.mp4",
+  hyperthyreose: "hyperthyreose/pharmacy_hyperthyreose.mp4",
+  hypothyreose: "hypothyreose/pharmacy_hypothyreose.mp4",
+  kompressionsstruempfe: "kompressionsstruempfe/pharmacy_kompressionsstruempfe.mp4",
+}
+
+function buildChecklist(card: CoachingCard): string[] {
+  const items: string[] = []
+
+  // 1. Greeting / intro
+  items.push(`Ich weiß, wie ich den Kunden begrüße und das Rezept annehme.`)
+
+  // 2. Medication knowledge
+  if (card.customerDoesNotKnow.length > 0) {
+    items.push(`Ich kann dem Kunden das Medikament erklären (Wirkung, Einnahme).`)
+  }
+
+  // 3. Bridge to supplement
+  if (card.bridgeToSupplement) {
+    items.push(`Ich kenne die Überleitung zu Zusatzempfehlungen.`)
+  }
+
+  // 4. Primary product
+  if (card.products.length > 0) {
+    items.push(`Ich kann ${card.products[0].name} empfehlen und die Vorteile erklären.`)
+  }
+
+  // 5. Additional products
+  if (card.additionalBridges && card.additionalBridges.length > 0) {
+    const additionalProducts = card.additionalBridges
+      .flatMap(b => b.products)
+      .filter(p => p.name && p.benefits.length > 0)
+      .map(p => p.name)
+    if (additionalProducts.length > 0) {
+      items.push(`Ich kenne die weiteren Empfehlungen: ${additionalProducts.join(", ")}.`)
+    }
+  }
+
+  // 6. Tips
+  if (card.tips) {
+    items.push(`Ich kann dem Kunden zusätzliche Gesundheitstipps geben.`)
+  }
+
+  return items
+}
+
+export default function DynamicPreparationPage() {
+  const params = useParams()
+  const scenarioId = params.scenarioId as string
+
+  const card = useMemo(() => getCoachingCardById(scenarioId), [scenarioId])
+  const scenario = useMemo(() => getScenarioById(scenarioId), [scenarioId])
+
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({})
   const [isReady, setIsReady] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [videoLoading, setVideoLoading] = useState(true)
   const [videoError, setVideoError] = useState(false)
 
-  // Video aus Supabase laden
+  const checklist = useMemo(() => (card ? buildChecklist(card) : []), [card])
+
+  // Load video from Supabase
   useEffect(() => {
     async function loadVideo() {
+      const path = videoPathMap[scenarioId]
+      if (!path) {
+        setVideoLoading(false)
+        setVideoError(true)
+        return
+      }
+
       try {
         const supabase = createClient()
         const { data, error } = await supabase.storage
           .from("learning-videos")
-          .createSignedUrl("magnesium/magnesium_heidi_video.mp4", 3600)
+          .createSignedUrl(path, 3600)
 
         if (error) {
-          // Fallback: public URL
           const { data: publicData } = supabase.storage
             .from("learning-videos")
-            .getPublicUrl("magnesium/magnesium_heidi_video.mp4")
+            .getPublicUrl(path)
           if (publicData?.publicUrl) {
             setVideoUrl(publicData.publicUrl)
           } else {
@@ -46,60 +117,66 @@ export default function PreparationPage() {
       }
     }
     loadVideo()
-  }, [])
-
-  const trainingAreas = [
-    {
-      icon: CheckCircle,
-      title: "Produktwissen & Wirkung",
-      description: "Dein Wissen über das Produkt und seine Vorteile.",
-      topics: [
-        "Wirkung auf Muskeln, Nerven und Energie",
-        "Vorteile der Citratform (Verfügbarkeit, Verträglichkeit)",
-        "Argumente: Reinheit und Apothekenqualität",
-      ],
-    },
-    {
-      icon: Users,
-      title: "Zielgruppen & Indikationen",
-      description: "Für welche Kunden das Produkt ideal ist.",
-      topics: [
-        "Kunden mit nächtlichen Wadenkrämpfen",
-        "Personen, die Diuretika einnehmen",
-        "Erhöhter Bedarf bei Sport und Stress",
-      ],
-    },
-    {
-      icon: Target,
-      title: "Argumentation & Einwandbehandlung",
-      description: "Wie du im Gespräch überzeugend reagierst.",
-      topics: [
-        "Umgang mit Preis-Einwänden ('zu teuer')",
-        "Abgrenzung zu Drogerie-Produkten",
-        "Reaktion auf Skepsis ('Brauche ich das wirklich?')",
-      ],
-    },
-  ]
-
-  const preparationChecklist = [
-    "Ich kenne die Hauptwirkungen von Magnesium auf Muskeln, Nerven und Energie.",
-    "Ich kann die Vorteile der Citratform erklären (z.B. gute Verfügbarkeit).",
-    "Ich kenne die wichtigsten Zielgruppen (z.B. bei Wadenkrämpfen, Diuretika-Einnahme).",
-    "Ich bin vorbereitet, den Preisunterschied zu Drogerieprodukten zu begründen.",
-    "Ich kann auf den Einwand 'Ich ernähre mich gesund, das reicht doch' reagieren.",
-    "Ich habe eine klare Ein-Satz-Empfehlung für den Kunden parat.",
-  ]
+  }, [scenarioId])
 
   const handleCheckboxChange = (index: number, checked: boolean) => {
     const newCheckedItems = { ...checkedItems, [index]: checked }
     setCheckedItems(newCheckedItems)
-    const allChecked = preparationChecklist.every((_, i) => newCheckedItems[i])
+    const allChecked = checklist.every((_, i) => newCheckedItems[i])
     setIsReady(allChecked)
   }
 
   const handleStartSimulation = () => {
-    window.location.href = "/interview?scenarioId=diuretikum"
+    window.location.href = `/interview?scenarioId=${scenarioId}`
   }
+
+  if (!card || !scenario) {
+    return (
+      <div className="min-h-screen page-gradient flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Pill className="w-12 h-12 text-gray-300 mx-auto" />
+          <h2 className="text-xl font-semibold text-gray-700">Szenario nicht gefunden</h2>
+          <Button onClick={() => window.location.href = "/start"} variant="outline">
+            Zurück zur Übersicht
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Build training areas from the coaching card data
+  const trainingAreas = [
+    {
+      icon: FileText,
+      title: "Rezeptannahme & Medikament",
+      description: "Wissen über das verordnete Medikament.",
+      topics: [
+        `Medikament: ${scenario.prescription.medication}`,
+        ...(card.customerDoesNotKnow.length > 0
+          ? card.customerDoesNotKnow.slice(0, 2)
+          : ["Einnahmehinweise kennen"]),
+      ],
+    },
+    {
+      icon: ShoppingBag,
+      title: "Zusatzempfehlungen",
+      description: "Passende Produkte zur Ergänzung empfehlen.",
+      topics: [
+        ...card.products.map(p => p.name),
+        ...(card.additionalBridges?.flatMap(b => b.products.map(p => p.name)).filter(Boolean) || []),
+      ].slice(0, 4),
+    },
+    {
+      icon: MessageSquare,
+      title: "Gesprächsführung",
+      description: "Natürliche Überleitung und Beratungskompetenz.",
+      topics: [
+        card.bridgeToSupplement ? "Überleitung zur Zusatzempfehlung" : "Kundenbedürfnisse erkennen",
+        "Auf Fragen und Einwände reagieren",
+        card.tips ? "Gesundheitstipps geben" : "Freundlich verabschieden",
+      ],
+    },
+  ]
 
   return (
     <div className="min-h-screen page-gradient relative overflow-hidden">
@@ -119,8 +196,10 @@ export default function PreparationPage() {
                 <Pill className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Beratungssimulation: Magnesiumcitrat 130</h1>
-                <p className="text-gray-500">Bereite dich auf das Kundengespräch vor</p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Beratungssimulation: {card.title}
+                </h1>
+                <p className="text-gray-500">{card.subtitle} - Bereite dich auf das Kundengespräch vor</p>
               </div>
             </div>
           </div>
@@ -135,7 +214,7 @@ export default function PreparationPage() {
           <CardHeader className="bg-gradient-to-r from-brand/5 to-brand-accent/5">
             <CardTitle className="flex items-center space-x-2">
               <Play className="w-5 h-5 text-brand" />
-              <span>Einführungsvideo: Magnesium in der Beratung</span>
+              <span>Einführungsvideo: {card.title}</span>
             </CardTitle>
             <CardDescription>
               Schaue dir das Video an, bevor du in die Simulation startest.
@@ -166,13 +245,14 @@ export default function PreparationPage() {
                 <div className="text-center space-y-2">
                   <Volume2 className="w-10 h-10 text-gray-300 mx-auto" />
                   <p className="text-gray-500">Video konnte nicht geladen werden.</p>
+                  <p className="text-xs text-gray-400">Du kannst trotzdem mit der Vorbereitung fortfahren.</p>
                 </div>
               </div>
             ) : null}
           </CardContent>
         </Card>
 
-        {/* Einleitung */}
+        {/* Szenario-Info */}
         <Card className="mb-8 bg-white/90 backdrop-blur-sm shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -180,12 +260,14 @@ export default function PreparationPage() {
               <span>Über diese Simulation</span>
             </CardTitle>
             <CardDescription>
-              Diese Simulation trainiert dich für ein erfolgreiches Beratungsgespräch zu Magnesiumcitrat 130.
+              Trainiere die Beratung für: {card.title} ({card.subtitle})
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-gray-700 mb-4">
-              In dieser Simulation üben wir, die Vorteile von Magnesiumcitrat 130 aktiv zu kommunizieren, passende Kundengruppen zu erkennen und überzeugend auf typische Fragen und Einwände zu reagieren. Ziel ist es, dass du dich im HV-Alltag sicher fühlst, das Produkt proaktiv zu empfehlen.
+              Ein Kunde kommt mit einem Rezept in die Apotheke.
+              Deine Aufgabe ist es, das Rezept entgegenzunehmen, den Kunden über das Medikament zu beraten und passende
+              Zusatzprodukte zu empfehlen.
             </p>
 
             <div className="bg-brand/10 border border-brand/20 rounded-lg p-4 shadow-sm">
@@ -194,10 +276,10 @@ export default function PreparationPage() {
                 <div>
                   <h4 className="font-medium text-brand mb-2">Format der Simulation</h4>
                   <ul className="text-sm text-gray-800 space-y-1">
-                    <li>• Dauer: ca. 10 Minuten</li>
-                    <li>• Format: Gesprächssimulation mit einem KI-Kunden</li>
-                    <li>• Sprache: Deutsch</li>
-                    <li>• Ziel: Das Gespräch wird zur Verbesserung deiner Beratungsfähigkeiten analysiert.</li>
+                    <li>- Dauer: ca. 10 Minuten</li>
+                    <li>- Format: Gesprächssimulation mit einem KI-Kunden</li>
+                    <li>- Sprache: Deutsch</li>
+                    <li>- Ziel: Das Gespräch wird zur Verbesserung deiner Beratungsfähigkeiten analysiert.</li>
                   </ul>
                 </div>
               </div>
@@ -258,7 +340,7 @@ export default function PreparationPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {preparationChecklist.map((item, index) => (
+              {checklist.map((item, index) => (
                 <div key={index} className="flex items-start space-x-3">
                   <Checkbox
                     id={`checklist-${index}`}
@@ -290,28 +372,6 @@ export default function PreparationPage() {
                 </p>
               </div>
             )}
-            {!isReady && (
-              <div className="mt-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-start space-x-3">
-                    <Info className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-medium text-purple-900">Unsicher bei einigen Punkten?</h4>
-                      <p className="text-sm text-purple-700 mt-1">
-                        Frische dein Wissen auf, bevor du startest. Wir haben eine kompakte Übersicht für dich vorbereitet.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="bg-white text-purple-700 border-purple-200 hover:bg-purple-50 hover:text-purple-800 shrink-0"
-                    onClick={() => window.location.href = "/magnesium-info"}
-                  >
-                    Zur Wissens-Übersicht
-                  </Button>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -326,7 +386,7 @@ export default function PreparationPage() {
             Simulation starten
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
-          <Button variant="outline" onClick={() => window.location.href = "/"} size="lg">
+          <Button variant="outline" onClick={() => window.location.href = "/start"} size="lg">
             Zurück zur Übersicht
           </Button>
         </div>

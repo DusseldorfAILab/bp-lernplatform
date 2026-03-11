@@ -42,42 +42,55 @@ export async function GET(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // NEU: PHARMAZIE-TRAINING AGENTS
+    // PHARMAZIE-TRAINING AGENTS (alt)
     // ═══════════════════════════════════════════════════════════════
 
-    // B-Vitamine & Energie
     if (agentKey === "pharmacy_b_vitamins") {
-      return [
-        "PHARMACY_B_VITAMINS_AGENT_ID",
-        "pharmacy_b_vitamins_agent_id",
-        "B_VITAMINS_AGENT_ID"
-      ];
+      return ["PHARMACY_B_VITAMINS_AGENT_ID"];
     }
-
-    // Magnesiumcitrat 130
     if (agentKey === "pharmacy_magnesium") {
-      return [
-        "PHARMACY_MAGNESIUM_AGENT_ID",
-        "pharmacy_magnesium_agent_id",
-        "MAGNESIUM_AGENT_ID"
-      ];
+      return ["PHARMACY_MAGNESIUM_AGENT_ID"];
     }
-
-    // Perenterol forte
     if (agentKey === "pharmacy_perenterol") {
-      return [
-        "PHARMACY_PERENTEROL_AGENT_ID",
-        "pharmacy_perenterol_agent_id",
-        "PERENTEROL_AGENT_ID"
-      ];
+      return ["PHARMACY_PERENTEROL_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy") {
+      return ["PHARMACY_AGENT_ID"];
     }
 
-    // Generischer Pharmacy-Agent (Fallback)
-    if (agentKey === "pharmacy") {
-      return [
-        "PHARMACY_AGENT_ID",
-        "pharmacy_agent_id"
-      ];
+    // ═══════════════════════════════════════════════════════════════
+    // 10 REZEPT-SIMULATIONEN AGENTS
+    // ═══════════════════════════════════════════════════════════════
+
+    if (agentKey === "pharmacy_diuretikum") {
+      return ["PHARMACY_DIURETIKUM_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_fluorid") {
+      return ["PHARMACY_FLUORID_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_gastritis") {
+      return ["PHARMACY_GASTRITIS_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_gicht") {
+      return ["PHARMACY_GICHT_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_eisenmangel") {
+      return ["PHARMACY_EISENMANGEL_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_grippe") {
+      return ["PHARMACY_GRIPPE_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_helicobacter") {
+      return ["PHARMACY_HELICOBACTER_AGENT_ID", "PHARMACY_PERENTEROL_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_hyperthyreose") {
+      return ["PHARMACY_HYPERTHYREOSE_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_hypothyreose") {
+      return ["PHARMACY_HYPOTHYREOSE_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
+    }
+    if (agentKey === "pharmacy_kompression") {
+      return ["PHARMACY_KOMPRESSION_AGENT_ID", "PHARMACY_MAGNESIUM_AGENT_ID"];
     }
 
     // ═══════════════════════════════════════════════════════════════

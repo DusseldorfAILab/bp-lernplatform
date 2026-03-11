@@ -291,10 +291,10 @@ export function ConvAI(props: ConvAIProps) {
 
             {!props.hideTranscript && (
               <div className="mx-6 mt-4 text-left">
-                <div className="text-sm font-semibold mb-2">Live transcript</div>
+                <div className="text-base font-semibold mb-2">Live transcript</div>
                 <div
                   ref={transcriptRef}
-                  className="max-h-64 overflow-auto rounded border p-3 text-sm bg-white/60"
+                  className="max-h-64 overflow-auto rounded border p-3 text-base bg-white/60"
                 >
                   {transcript.length === 0 ? (
                     <div className="text-gray-500">No messages yet.</div>
@@ -317,10 +317,10 @@ export function ConvAI(props: ConvAIProps) {
                                 isUser ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"
                               )}
                             >
-                              <div className="mb-1 text-[10px] uppercase tracking-wide opacity-70">
+                              <div className="mb-1 text-xs uppercase tracking-wide opacity-70">
                                 {isUser ? "You" : "AI"}
                               </div>
-                              <div className="text-sm leading-relaxed">{e.text}</div>
+                              <div className="text-base leading-relaxed">{e.text}</div>
                             </div>
                           </li>
                         );

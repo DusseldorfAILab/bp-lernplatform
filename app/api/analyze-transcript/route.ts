@@ -164,6 +164,144 @@ Der Overview soll eine kurze Zusammenfassung der wichtigsten Learnings aus dem G
   },
 
   // ─────────────────────────────────────────────────────────────────
+  // DIURETIKUM (HCT) - Rezept-Simulation
+  // ─────────────────────────────────────────────────────────────────
+  'pharmacy_diuretikum': {
+    systemPrompt: `Du bist ein erfahrener Apotheken-Coach fuer das Szenario "Diuretikum-Beratung". Eine Kundin (Helga Mueller, 68) kam mit einem Rezept fuer HCT 25mg (Hydrochlorothiazid) in die Apotheke.
+
+FACHLICHER HINTERGRUND - DIURETIKUM-BERATUNG:
+- HCT 25mg (Hydrochlorothiazid): Thiazid-Diuretikum zur Blutdrucksenkung
+- Wirkung: Vermehrte Wasserausscheidung, dadurch Blutdrucksenkung und Herzentlastung
+- Einnahme: 1x taeglich morgens (wegen naechtlicher Toilettengaenge)
+- WICHTIG: Durch die entwaessernde Wirkung werden Mineralstoffe (v.a. Magnesium, Kalium) vermehrt ausgeschieden
+
+BERATUNGSPHASEN die der Mitarbeiter durchlaufen sollte:
+1. Begruessung - Freundlicher Empfang des Kunden
+2. Rezeptannahme - Rezept professionell annehmen und bearbeiten
+3. Medikamentenwissen - Fragen ob der Kunde das Medikament kennt
+4. Ueberleitung zur Ergaenzung - Natuerliche Bruecke zu Zusatzempfehlungen (Mineralstoffverlust erwaehnen)
+5. Zusaetzliche Tipps - Ernaehrungshinweise, Lebensstil
+
+PRODUKTE die empfohlen werden sollten:
+- Magnesium Sandoz forte (Brausetabletten) - gegen Muskelkraempfe durch Mineralstoffverlust
+- Macrogol Hexal (Pulver) - gegen Verstopfung als Nebenwirkung
+- Eucerin Urea Lotion 3/10% - gegen trockene Haut durch Fluessigkeitsverlust
+
+ANALYSE-AUFGABE:
+Dir wird das Gespraechstranskript UND eine automatische Analyse mit verpassten Phasen und nicht empfohlenen Produkten geliefert.
+
+ERSTELLE LERNMODULE NUR FUER VERPASSTE PUNKTE:
+- Fuer jede verpasste Gespraechsphase: Ein Modul das erklaert WARUM diese Phase wichtig ist und WIE man sie umsetzt
+- Fuer jedes nicht empfohlene Produkt: Ein Modul das erklaert WARUM das Produkt wichtig ist und WIE man es natuerlich empfiehlt
+- Die Quiz-Fragen muessen PRAXISNAH sein und testen ob der Mitarbeiter den verpassten Punkt jetzt versteht
+- Wenn ALLES richtig gemacht wurde, erstelle Vertiefungsmodule zu schwierigen Einwaenden
+
+Erstelle 2-5 Module (je nach Anzahl verpasster Punkte). Weniger Module wenn wenig verpasst wurde.
+
+Antworte mit einem JSON-Objekt:
+{
+  "modules": [
+    {
+      "icon": "ShieldCheck" | "Users" | "Target" | "Zap" | "Heart" | "Activity" | "Pill" | "AlertTriangle",
+      "title": "Titel des Moduls (z.B. 'Verpasst: Mineralstoffverlust erwaehnen')",
+      "description": "Kurze Beschreibung was gelernt wird",
+      "content": [
+        "<b>Warum wichtig:</b> Erklaerung warum dieser Punkt in der Beratung essenziell ist...",
+        "<b>So geht's:</b> Konkrete Formulierung die der Mitarbeiter verwenden kann...",
+        "<b>Praxis-Tipp:</b> Zusaetzlicher Hinweis fuer den HV-Alltag..."
+      ],
+      "quiz": {
+        "question": "Praxisnahe Frage die testet ob der verpasste Punkt verstanden wurde",
+        "answers": [
+          { "text": "Falsche Antwort", "isCorrect": false },
+          { "text": "Richtige Antwort", "isCorrect": true },
+          { "text": "Falsche Antwort", "isCorrect": false }
+        ]
+      }
+    }
+  ],
+  "overview": "Kurze Zusammenfassung: Was lief gut, was wurde verpasst (max 3 Saetze)"
+}
+
+Wichtig: Genau eine Antwort pro Quiz muss "isCorrect": true haben.`,
+
+    fallbackModules: [
+      {
+        icon: "Zap",
+        title: "Mineralstoffverlust bei Diuretika",
+        description: "Warum Magnesium-Ergaenzung bei HCT wichtig ist.",
+        content: [
+          "<b>Warum wichtig:</b> HCT foerdert die Ausscheidung von Magnesium und Kalium ueber die Niere. Dies kann zu Muskelkraempfen, Muedigkeit und Herzrhythmusstoerungen fuehren.",
+          "<b>So geht's:</b> 'Durch die entwaessernde Wirkung werden auch wichtige Mineralstoffe ausgeschieden. Haben Sie in letzter Zeit oefter Muskelkraempfe bemerkt?'",
+          "<b>Praxis-Tipp:</b> Magnesium Sandoz forte als Brausetablette - einfache Einnahme und gleichzeitig Fluessigkeitszufuhr.",
+        ],
+        quiz: {
+          question: "Eine Kundin mit HCT-Rezept klagt ueber naechtliche Wadenkraempfe. Was ist die wahrscheinlichste Ursache?",
+          answers: [
+            { text: "Zu wenig Bewegung", isCorrect: false },
+            { text: "Mineralstoffverlust (v.a. Magnesium) durch das Diuretikum", isCorrect: true },
+            { text: "Nebenwirkung die man ignorieren kann", isCorrect: false },
+          ],
+        },
+      },
+      {
+        icon: "Pill",
+        title: "Verdauungsprobleme als Nebenwirkung",
+        description: "Macrogol als Begleitempfehlung bei Diuretika.",
+        content: [
+          "<b>Warum wichtig:</b> Durch die vermehrte Wasserausscheidung kann der Stuhl hart werden und Verstopfung auftreten.",
+          "<b>So geht's:</b> 'Durch die vermehrte Wasserausscheidung kann es auch zu Verdauungsproblemen kommen. Fuer den Fall empfehle ich Ihnen Macrogol.'",
+          "<b>Praxis-Tipp:</b> Macrogol Hexal ist zur Dauereinnahme geeignet und hat einen sanften, zuverlaessigen Wirkmechanismus.",
+        ],
+        quiz: {
+          question: "Warum kann ein Diuretikum zu Verstopfung fuehren?",
+          answers: [
+            { text: "Es hemmt die Darmperistaltik direkt", isCorrect: false },
+            { text: "Durch die vermehrte Wasserausscheidung wird dem Stuhl Wasser entzogen", isCorrect: true },
+            { text: "Es veraendert die Darmflora", isCorrect: false },
+          ],
+        },
+      },
+      {
+        icon: "Heart",
+        title: "Hautpflege bei Diuretika-Einnahme",
+        description: "Trockene Haut als haeufige Begleiterscheinung erkennen.",
+        content: [
+          "<b>Warum wichtig:</b> Durch den erhoehten Fluessigkeitsverlust wird die Haut trockener und kann jucken.",
+          "<b>So geht's:</b> 'Haeufig zeigt sich eine trockenere Haut nach laengerer Einnahme. Eucerin Urea Lotion versorgt die Haut nachhaltig mit Feuchtigkeit.'",
+          "<b>Praxis-Tipp:</b> 3% Urea fuer leichte Trockenheit, 10% fuer staerkere Trockenheit mit Juckreiz.",
+        ],
+        quiz: {
+          question: "Welchen Wirkstoff enthaelt Eucerin Urea Lotion zur nachhaltigen Feuchtigkeitsversorgung?",
+          answers: [
+            { text: "Hyaluronsaeure", isCorrect: false },
+            { text: "Urea (Harnstoff) - ein natuerlicher Feuchtigkeitsbinder", isCorrect: true },
+            { text: "Panthenol", isCorrect: false },
+          ],
+        },
+      },
+      {
+        icon: "Users",
+        title: "Medikamentenwissen abfragen",
+        description: "Warum die Frage 'Kennen Sie das Medikament?' so wichtig ist.",
+        content: [
+          "<b>Warum wichtig:</b> Nur wenn du weisst ob der Kunde das Medikament kennt, kannst du die Beratung richtig anpassen.",
+          "<b>So geht's:</b> 'Kennen Sie das Medikament bereits oder ist es das erste Mal fuer Sie?'",
+          "<b>Praxis-Tipp:</b> Bei Erstverordnung ausfuehrlicher beraten, bei Wiederholung nach Erfahrungen und Problemen fragen.",
+        ],
+        quiz: {
+          question: "Warum solltest du immer fragen ob der Kunde das Medikament bereits kennt?",
+          answers: [
+            { text: "Um die Beratungstiefe richtig anzupassen", isCorrect: true },
+            { text: "Weil es gesetzlich vorgeschrieben ist", isCorrect: false },
+            { text: "Um Zeit zu sparen", isCorrect: false },
+          ],
+        },
+      },
+    ]
+  },
+
+  // ─────────────────────────────────────────────────────────────────
   // MAGNESIUMCITRAT
   // ─────────────────────────────────────────────────────────────────
   'pharmacy_magnesium': {
@@ -600,7 +738,7 @@ export async function POST(request: Request) {
 
     // Body auslesen
     const body = await request.json();
-    const { transcript, applicationId } = body;
+    const { transcript, applicationId, consultationScore, scenarioId } = body;
 
     console.log(`[API] Analyse gestartet für Thema: ${topicType}, ApplicationId: ${applicationId || 'none'}`);
 
@@ -615,9 +753,29 @@ export async function POST(request: Request) {
     }
 
     // Transkript in lesbaren String umwandeln
-    const transcriptText = transcript
+    let transcriptText = transcript
       .map((msg: { role: string; text: string }) => `${msg.role === 'user' ? 'Mitarbeiter' : 'Kunde'}: ${msg.text}`)
       .join('\n');
+
+    // Append consultation score data if available (from real-time tracking)
+    if (consultationScore) {
+      transcriptText += `\n\n--- AUTOMATISCHE GESPRAECHSANALYSE ---`;
+      transcriptText += `\nSzenario: ${scenarioId || 'unbekannt'}`;
+      transcriptText += `\nGesamtscore: ${consultationScore.score}/${consultationScore.maxScore} (${consultationScore.percentage}%)`;
+      transcriptText += `\nGespraechsphasen abgeschlossen: ${consultationScore.phasesCompleted}/${consultationScore.phasesTotal}`;
+      transcriptText += `\nProdukte empfohlen: ${consultationScore.productsRecommended}/${consultationScore.productsTotal}`;
+
+      if (consultationScore.missedPhases?.length > 0) {
+        transcriptText += `\nVerpasste Phasen: ${consultationScore.missedPhases.join(', ')}`;
+      }
+      if (consultationScore.missedProducts?.length > 0) {
+        transcriptText += `\nNicht empfohlene Produkte: ${consultationScore.missedProducts.join(', ')}`;
+      }
+      if (consultationScore.recommendedProducts?.length > 0) {
+        transcriptText += `\nEmpfohlene Produkte: ${consultationScore.recommendedProducts.join(', ')}`;
+      }
+      transcriptText += `\n--- ENDE ANALYSE ---`;
+    }
 
     console.log(`[API] Transkript-Länge: ${transcriptText.length} Zeichen`);
 

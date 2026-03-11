@@ -72,9 +72,36 @@
   * {
     @apply border-border;
   }
+  html {
+    font-size: 20px;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Glass morphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Gradient page background */
+.page-gradient {
+  background: linear-gradient(135deg, #f5f0f9 0%, #ffffff 40%, #f0ebf5 100%);
+}
+
+/* Smooth card hover */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px -12px rgba(123, 75, 148, 0.15);
 }
 
 /* Orb Styling */

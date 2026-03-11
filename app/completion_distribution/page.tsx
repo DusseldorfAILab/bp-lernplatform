@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { getQuizModulesForMissedItems, getAllQuizModules } from "@/data/scenario-quizzes"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -25,7 +27,10 @@ import {
   Shield,
   AlertTriangle,
   Plane,
-  Star
+  Star,
+  TrendingUp,
+  ShoppingBag,
+  Circle
 } from "lucide-react"
 
 // ==================================================================
@@ -61,6 +66,20 @@ interface QuizResult {
   correctAnswer: string;
   isCorrect: boolean;
   moduleTopic: string;
+}
+
+interface ConsultationScore {
+  phasesCompleted: number;
+  phasesTotal: number;
+  productsRecommended: number;
+  productsTotal: number;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  completedPhases: string[];
+  recommendedProducts: string[];
+  missedPhases: string[];
+  missedProducts: string[];
 }
 
 // ==================================================================
@@ -175,6 +194,9 @@ const fallbackModules: LearningModule[] = [
 ];
 
 export default function CompletionPage() {
+  const searchParams = useSearchParams();
+  const scenarioId = searchParams.get("scenarioId") || "";
+
   const [showSuccess, setShowSuccess] = useState(false)
   const [isLoadingModules, setIsLoadingModules] = useState(true);
   const [learningModules, setLearningModules] = useState<LearningModule[]>([]);
@@ -188,6 +210,9 @@ export default function CompletionPage() {
   const [isGeminiLoading, setIsGeminiLoading] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const analysisTriggered = useRef(false);
+
+  // Consultation Score aus der Simulation
+  const [consultationScore, setConsultationScore] = useState<ConsultationScore | null>(null);
 
   // Transkript aus dem Interview laden
   const [interviewTranscript, setInterviewTranscript] = useState<string>('');
@@ -227,7 +252,59 @@ export default function CompletionPage() {
 
     const loadData = async () => {
       try {
-        // 1. Try loading from sessionStorage
+        // Load consultation score from the simulation
+        let score: ConsultationScore | null = null;
+        const storedScore = sessionStorage.getItem('consultationScore');
+        if (storedScore) {
+          try {
+            score = JSON.parse(storedScore);
+            setConsultationScore(score);
+          } catch { /* ignore parse errors */ }
+        }
+
+        // 1. If we have a scenarioId and consultationScore, use pre-defined quizzes
+        if (scenarioId && score) {
+          const missedModules = getQuizModulesForMissedItems(
+            scenarioId,
+            score.missedPhases || [],
+            score.missedProducts || [],
+          );
+
+          if (missedModules.length > 0) {
+            // Convert ScenarioQuizModule to LearningModule format
+            const modules: LearningModule[] = missedModules.map(m => ({
+              icon: m.icon,
+              title: m.title,
+              description: m.description,
+              content: m.content,
+              quiz: m.quiz,
+            }));
+            setLearningModules(modules);
+            setCompletedModules(Array(modules.length).fill(false));
+            setQuizResults([]);
+            setIsLoadingModules(false);
+            return;
+          }
+
+          // If nothing was missed, show all modules for full review
+          const allModules = getAllQuizModules(scenarioId);
+          if (allModules.length > 0) {
+            const modules: LearningModule[] = allModules.map(m => ({
+              icon: m.icon,
+              title: m.title,
+              description: m.description,
+              content: m.content,
+              quiz: m.quiz,
+            }));
+            setLearningModules(modules);
+            setCompletedModules(Array(modules.length).fill(false));
+            setQuizResults([]);
+            setIsLoadingModules(false);
+            return;
+          }
+        }
+
+        // 2. Fallback: Try loading Gemini-generated modules from sessionStorage
         const storedData = sessionStorage.getItem('dynamicLearningData');
         if (storedData) {
           const parsed = JSON.parse(storedData);
@@ -240,7 +317,7 @@ export default function CompletionPage() {
           }
         }
 
-        // 2. If not in session, try fetching from API using applicationId
+        // 3. Try fetching from API using applicationId
         const params = new URLSearchParams(window.location.search);
         const applicationId = params.get('applicationId');
 
@@ -253,19 +330,12 @@ export default function CompletionPage() {
               setCompletedModules(Array(data.training_modules.length).fill(false));
               setQuizResults([]);
               setIsLoadingModules(false);
-
-              // Also restore transcript if available
-              if (data.interview_transcript) {
-                // Convert transcript to string format if needed or store as is
-                // The component expects a string for 'interviewTranscript' but maybe we can adapt
-                // For now, let's just leave it empty or try to reconstruct if critical
-              }
               return;
             }
           }
         }
 
-        // 3. Fallback
+        // 4. Fallback
         setLearningModules(fallbackModules);
         setCompletedModules(Array(fallbackModules.length).fill(false));
         setQuizResults([]);
@@ -454,38 +524,128 @@ Bitte gib mir ein persönliches Feedback zu meiner Leistung. Was habe ich gut ge
   }, [chatHistory]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      <header className="bg-white border-b border-gray-200">
+    <div className="min-h-screen page-gradient relative overflow-hidden pb-16">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-80 h-80 bg-gradient-to-br from-brand/15 to-brand-accent/20 rounded-full blur-3xl" />
+        <div className="absolute top-2/3 -left-24 w-64 h-64 bg-gradient-to-br from-brand-light/20 to-purple-200/15 rounded-full blur-3xl" />
+      </div>
+
+      <header className="relative glass border-b border-white/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-5">
-              <div className="w-16 h-16 bg-brand rounded-lg flex items-center justify-center shadow-sm">
+              <div className="w-16 h-16 bg-gradient-to-br from-brand to-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand/20">
                 <Pill className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Training abgeschlossen</h1>
-                <p className="text-gray-600">Ergebnisse & Vertiefung</p>
+                <p className="text-gray-500">Ergebnisse & Vertiefung</p>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center mb-10">
-          <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full transition-all duration-700 ${showSuccess ? "bg-green-100 scale-100" : "bg-gray-100 scale-90"}`}>
-            <CheckCircle className={`transition-all duration-700 ${showSuccess ? "w-10 h-10 text-green-600" : "w-8 h-8 text-gray-400"}`} />
+          <div className={`inline-flex items-center justify-center w-20 h-20 rounded-2xl transition-all duration-700 ${showSuccess ? "bg-gradient-to-br from-green-400 to-emerald-500 scale-100 shadow-lg shadow-green-200" : "bg-gray-100 scale-90"}`}>
+            <CheckCircle className={`transition-all duration-700 ${showSuccess ? "w-10 h-10 text-white" : "w-8 h-8 text-gray-400"}`} />
           </div>
           <h2 className={`text-2xl font-bold mt-4 transition-opacity duration-700 ${showSuccess ? "opacity-100" : "opacity-0"}`}>
             Simulation erfolgreich beendet!
           </h2>
           <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
-            Super gemacht! Nutze die folgenden Module, um dein Wissen zu festigen und dein Zertifikat freizuschalten.
+            {consultationScore && consultationScore.percentage < 100
+              ? "Hier siehst du, was du gut gemacht hast und wo du dich noch verbessern kannst."
+              : "Super gemacht! Nutze die folgenden Module, um dein Wissen zu festigen."
+            }
           </p>
         </div>
 
+        {/* Consultation Score Overview */}
+        {consultationScore && (
+          <div className="mb-10 max-w-3xl mx-auto">
+            <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-brand/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <TrendingUp className="w-5 h-5 text-brand" />
+                  Deine Beratungsleistung
+                </CardTitle>
+                <CardDescription>
+                  Ergebnis: {consultationScore.score} von {consultationScore.maxScore} Punkten ({consultationScore.percentage}%)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Score bar */}
+                <div>
+                  <Progress value={consultationScore.percentage} className={`w-full h-3 ${consultationScore.percentage >= 70 ? '[&>*]:bg-green-500' : consultationScore.percentage >= 40 ? '[&>*]:bg-yellow-500' : '[&>*]:bg-red-500'}`} />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Phases */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp className="w-4 h-4 text-brand" />
+                      <h4 className="text-sm font-bold text-gray-800">
+                        Gespraechsphasen ({consultationScore.phasesCompleted}/{consultationScore.phasesTotal})
+                      </h4>
+                    </div>
+                    <div className="space-y-1.5">
+                      {consultationScore.completedPhases.map((phase, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-green-700">
+                          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{phase}</span>
+                        </div>
+                      ))}
+                      {consultationScore.missedPhases.map((phase, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-red-600">
+                          <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{phase}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Products */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ShoppingBag className="w-4 h-4 text-brand" />
+                      <h4 className="text-sm font-bold text-gray-800">
+                        Produktempfehlungen ({consultationScore.productsRecommended}/{consultationScore.productsTotal})
+                      </h4>
+                    </div>
+                    <div className="space-y-1.5">
+                      {consultationScore.recommendedProducts.map((product, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-green-700">
+                          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{product}</span>
+                        </div>
+                      ))}
+                      {consultationScore.missedProducts.map((product, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-red-600">
+                          <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{product}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hint about learning modules */}
+                {(consultationScore.missedPhases.length > 0 || consultationScore.missedProducts.length > 0) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                    <strong>Hinweis:</strong> Die folgenden Lernmodule sind gezielt auf deine Luecken zugeschnitten.
+                    Beantworte die Fragen, um dein Verstaendnis zu staerken.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {isLoadingModules ? (
-          <Card className="text-center p-8">
+          <Card className="text-center p-8 bg-white/90 backdrop-blur-sm shadow-md">
             <CardHeader><CardTitle>Lade Lerninhalte...</CardTitle></CardHeader>
             <CardContent>
               <div className="flex justify-center items-center space-x-2">
@@ -500,8 +660,18 @@ Bitte gib mir ein persönliches Feedback zu meiner Leistung. Was habe ich gut ge
             <div>
               <div className="mb-6 flex justify-between items-end">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Wissens-Check</h3>
-                  <p className="text-sm text-gray-500">Beantworte die Fragen, um die Analyse zu starten.</p>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {consultationScore && (consultationScore.missedPhases.length > 0 || consultationScore.missedProducts.length > 0)
+                      ? "Vertiefung: Deine Luecken schliessen"
+                      : "Wissens-Check"
+                    }
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {consultationScore && (consultationScore.missedPhases.length > 0 || consultationScore.missedProducts.length > 0)
+                      ? "Diese Module helfen dir, die verpassten Punkte nachzuholen."
+                      : "Beantworte die Fragen, um die Analyse zu starten."
+                    }
+                  </p>
                 </div>
                 <div className="text-right w-1/3">
                   <p className="text-xs text-gray-500 mb-1">{Math.round(progress)}% abgeschlossen</p>
@@ -516,10 +686,10 @@ Bitte gib mir ein persönliches Feedback zu meiner Leistung. Was habe ich gut ge
                   const ModuleIcon = iconMap[mod.icon] || iconMap.Default;
 
                   return (
-                    <Card key={index} className={`${isCompleted ? 'border-green-500 ring-1 ring-green-100' : ''}`}>
+                    <Card key={index} className={`bg-white/90 backdrop-blur-sm shadow-md card-hover ${isCompleted ? 'border-green-500 ring-1 ring-green-100' : ''}`}>
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
-                          <div className={`w-10 h-10 ${isCompleted ? 'bg-green-100' : 'bg-brand/10'} rounded-lg flex items-center justify-center`}>
+                          <div className={`w-10 h-10 ${isCompleted ? 'bg-gradient-to-br from-green-100 to-emerald-50' : 'bg-gradient-to-br from-brand/15 to-brand-accent/10'} rounded-lg flex items-center justify-center`}>
                             <ModuleIcon className={`w-5 h-5 ${isCompleted ? 'text-green-600' : 'text-brand'}`} />
                           </div>
                           {isCompleted && <CheckCircle className="w-5 h-5 text-green-500" />}
@@ -586,7 +756,7 @@ Bitte gib mir ein persönliches Feedback zu meiner Leistung. Was habe ich gut ge
             </div>
 
             {allModulesCompleted && (
-              <Card className="bg-white border-brand/20 shadow-sm">
+              <Card className="bg-white/90 backdrop-blur-sm border-brand/20 shadow-lg shadow-brand/5">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2 text-brand">
                     <Sparkles className="w-5 h-5" />
@@ -641,7 +811,7 @@ Bitte gib mir ein persönliches Feedback zu meiner Leistung. Was habe ich gut ge
 
             {/* FEEDBACK FORM */}
             {allModulesCompleted && (
-              <Card className="bg-white border-gray-200 shadow-sm mt-8">
+              <Card className="bg-white/90 backdrop-blur-sm border-gray-200 shadow-md mt-8">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Star className="w-5 h-5 text-yellow-500" />
