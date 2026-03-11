@@ -173,7 +173,7 @@ export function ConsultationTracker({ scenario, transcript, className = "" }: Co
       <div>
         <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="w-4 h-4 text-brand" />
-          <h4 className="text-sm font-bold text-gray-800">Gespraechsverlauf</h4>
+          <h4 className="text-sm font-bold text-gray-800">Gesprächsverlauf</h4>
           <span className="text-xs text-gray-400 ml-auto">
             {completedPhasesCount}/{scenario.phases.length}
           </span>

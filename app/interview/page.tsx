@@ -202,8 +202,8 @@ export default function InterviewPage() {
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand to-brand-accent flex items-center justify-center mx-auto shadow-lg shadow-brand/20">
             <Loader2 className="w-10 h-10 text-white animate-spin" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900">Analysiere dein Beratungsgespraech...</h2>
-          <p className="text-gray-500">Die KI wertet deine Empfehlungen und Gespraechsfuehrung aus.</p>
+          <h2 className="text-xl font-semibold text-gray-900">Analysiere dein Beratungsgespräch...</h2>
+          <p className="text-gray-500">Die KI wertet deine Empfehlungen und Gesprächsführung aus.</p>
         </div>
       </div>
     );
@@ -229,7 +229,7 @@ export default function InterviewPage() {
                     variant="outline"
                     className={`px-2 py-0.5 text-xs ${isConnected ? "border-green-500 text-green-600 bg-green-50" : "border-gray-300 text-gray-600 bg-gray-50"}`}
                   >
-                    {isConnected ? "Gespraech laeuft" : "Bereit"}
+                    {isConnected ? "Gespräch läuft" : "Bereit"}
                   </Badge>
                 </div>
               </div>
@@ -262,7 +262,7 @@ export default function InterviewPage() {
               <DialogDescription>
                 <div className="space-y-3 pt-3 text-gray-700 text-base">
                   <p>
-                    Ein Kunde betritt die Apotheke mit einem Rezept fuer{" "}
+                    Ein Kunde betritt die Apotheke mit einem Rezept für{" "}
                     <strong>{scenario?.prescription.medication}</strong>.
                     Deine Aufgabe:
                   </p>
@@ -277,14 +277,14 @@ export default function InterviewPage() {
                     </li>
                     <li className="flex items-start gap-2">
                       <ShoppingBag className="w-4 h-4 text-brand mt-0.5 flex-shrink-0" />
-                      <span><strong>Zusatzempfehlungen:</strong> Passende Produkte empfehlen, die das Medikament ergaenzen</span>
+                      <span><strong>Zusatzempfehlungen:</strong> Passende Produkte empfehlen, die das Medikament ergänzen</span>
                     </li>
                   </ul>
 
                   {/* Show products they should recommend */}
                   {scenario && (
                     <div className="bg-brand/10 p-3 rounded-lg text-sm text-gray-800 border border-brand/20">
-                      <strong>Moegliche Zusatzempfehlungen:</strong>
+                      <strong>Mögliche Zusatzempfehlungen:</strong>
                       <ul className="mt-1 space-y-0.5">
                         {scenario.upsellPaths.map((p, i) => (
                           <li key={i}>- {p.productName}</li>
@@ -294,7 +294,7 @@ export default function InterviewPage() {
                   )}
 
                   <div className="bg-amber-50 p-3 rounded-lg text-sm text-amber-800 border border-amber-200">
-                    <strong>Hinweis:</strong> Bitte nutze die Sprachberatung in einer ruhigen Umgebung. Das Rezept wird dir waehrend des Gespraechs angezeigt.
+                    <strong>Hinweis:</strong> Bitte nutze die Sprachberatung in einer ruhigen Umgebung. Das Rezept wird dir während des Gesprächs angezeigt.
                   </div>
                 </div>
               </DialogDescription>
@@ -345,7 +345,7 @@ export default function InterviewPage() {
                   size="lg"
                   onClick={handleEndInterview}
                 >
-                  Ueberspringen / Beenden
+                  Überspringen / Beenden
                 </Button>
               )}
             </div>
@@ -380,7 +380,7 @@ export default function InterviewPage() {
                   {transcript.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400 italic">
                       <Sparkles className="w-8 h-8 mb-2 opacity-20" />
-                      <p>Das Gespraech beginnt...</p>
+                      <p>Das Gespräch beginnt...</p>
                     </div>
                   ) : (
                     <ul className="space-y-3">

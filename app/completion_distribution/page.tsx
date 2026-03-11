@@ -588,7 +588,7 @@ Bitte gib mir ein persönliches Feedback zu meiner Leistung. Was habe ich gut ge
                     <div className="flex items-center gap-2 mb-3">
                       <TrendingUp className="w-4 h-4 text-brand" />
                       <h4 className="text-sm font-bold text-gray-800">
-                        Gespraechsphasen ({consultationScore.phasesCompleted}/{consultationScore.phasesTotal})
+                        Gesprächsphasen ({consultationScore.phasesCompleted}/{consultationScore.phasesTotal})
                       </h4>
                     </div>
                     <div className="space-y-1.5">
@@ -635,8 +635,8 @@ Bitte gib mir ein persönliches Feedback zu meiner Leistung. Was habe ich gut ge
                 {/* Hint about learning modules */}
                 {(consultationScore.missedPhases.length > 0 || consultationScore.missedProducts.length > 0) && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                    <strong>Hinweis:</strong> Die folgenden Lernmodule sind gezielt auf deine Luecken zugeschnitten.
-                    Beantworte die Fragen, um dein Verstaendnis zu staerken.
+                    <strong>Hinweis:</strong> Die folgenden Lernmodule sind gezielt auf deine Lücken zugeschnitten.
+                    Beantworte die Fragen, um dein Verständnis zu stärken.
                   </div>
                 )}
               </CardContent>
@@ -662,7 +662,7 @@ Bitte gib mir ein persönliches Feedback zu meiner Leistung. Was habe ich gut ge
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">
                     {consultationScore && (consultationScore.missedPhases.length > 0 || consultationScore.missedProducts.length > 0)
-                      ? "Vertiefung: Deine Luecken schliessen"
+                      ? "Vertiefung: Deine Lücken schließen"
                       : "Wissens-Check"
                     }
                   </h3>

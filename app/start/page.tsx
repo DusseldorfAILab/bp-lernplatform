@@ -123,7 +123,7 @@ export default function StartPage() {
         <div className="mb-12 text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center px-4 py-2 rounded-full bg-brand/10 text-brand text-sm font-medium mb-6 shadow-sm">
             <Sparkles className="w-4 h-4 mr-2" />
-            Praxisnahes Training fuer den HV
+            Praxisnahes Training für den HV
           </div>
           <h2 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-5 leading-tight">
             Willkommen bei
@@ -133,7 +133,7 @@ export default function StartPage() {
           </h2>
           <p className="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto">
             Perfektioniere deine Beratungskompetenz mit interaktiven KI-Simulationen.
-            Trainiere realistische Kundengespraeche und erhalte personalisiertes Feedback.
+            Trainiere realistische Kundengespräche und erhalte personalisiertes Feedback.
           </p>
         </div>
 
@@ -160,7 +160,7 @@ export default function StartPage() {
                   Magnesiumcitrat 130
                 </CardTitle>
                 <CardDescription className="text-gray-600 leading-relaxed">
-                  Beratung bei Muskelkraempfen, Stress und erhoehtem Bedarf. Ideal fuer Sportler und bei Diuretika-Einnahme. Inklusive Video-Einfuehrung und Vorbereitungs-Checkliste.
+                  Beratung bei Muskelkrämpfen, Stress und erhöhtem Bedarf. Ideal für Sportler und bei Diuretika-Einnahme. Inklusive Video-Einführung und Vorbereitungs-Checkliste.
                 </CardDescription>
               </div>
               <Button
@@ -251,7 +251,7 @@ export default function StartPage() {
           <div className="inline-flex items-center space-x-6 text-sm text-gray-500">
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 rounded-full bg-brand" />
-              <span>KI-gestuetzt</span>
+              <span>KI-gestützt</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 rounded-full bg-brand-accent" />
