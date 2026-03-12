@@ -35,6 +35,7 @@ export default function InterviewPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const prescriptionShownRef = useRef(false);
   const sessionStartRef = useRef<number>(Date.now());
+  const isEndingRef = useRef(false);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -55,6 +56,8 @@ export default function InterviewPage() {
   }, [transcript]);
 
   const handleEndInterview = useCallback(async () => {
+    if (isEndingRef.current) return;
+    isEndingRef.current = true;
     setIsAnalyzing(true);
     setIsTimerActive(false);
     setEndSignal(Date.now());
@@ -166,6 +169,7 @@ export default function InterviewPage() {
   }, []);
 
   const onMessage = useCallback((message: unknown) => {
+    if (isEndingRef.current) return;
     const m = message as { message: string; source: "user" | "ai" };
     if (!m?.message || !m?.source) return;
 
