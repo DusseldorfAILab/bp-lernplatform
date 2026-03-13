@@ -98,7 +98,7 @@ export default function PreparationPage() {
   }
 
   const handleStartSimulation = () => {
-    window.location.href = "/interview?scenarioId=diuretikum"
+    window.location.href = "/interview-magnesium"
   }
 
   return (

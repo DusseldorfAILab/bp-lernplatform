@@ -92,9 +92,9 @@ const cleanText = (text: string) => {
 // ==================================================================
 // 4. THEME CLASSES
 // ==================================================================
-const themeColorClass = "bg-blue-600";
-const themeTextClass = "text-blue-600";
-const themeBorderClass = "border-blue-600";
+const themeColorClass = "bg-brand";
+const themeTextClass = "text-brand";
+const themeBorderClass = "border-brand";
 
 // ==================================================================
 // 5. FALLBACK DATA
@@ -467,9 +467,9 @@ Nutzer fragt: ${userInput}`
   // RENDER
   // ==================================================================
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="min-h-screen page-gradient relative overflow-hidden pb-16">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="relative glass border-b border-white/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -524,15 +524,15 @@ Nutzer fragt: ${userInput}`
           <div className="space-y-8">
             {/* Overview Section */}
             {learningOverview && (
-              <Card className="bg-blue-50 border-blue-100">
+              <Card className="bg-brand/10 border-brand/20">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center space-x-2 text-blue-700 text-lg">
+                  <CardTitle className="flex items-center space-x-2 text-brand text-lg">
                     <Sparkles className="w-5 h-5" />
                     <span>Dein Gesprächs-Feedback</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-blue-900 leading-relaxed">
+                  <p className="text-gray-800 leading-relaxed">
                     {learningOverview}
                   </p>
                 </CardContent>
@@ -547,7 +547,7 @@ Nutzer fragt: ${userInput}`
               </div>
               <div className="text-right w-1/3">
                 <p className="text-xs text-gray-500 mb-1">{Math.round(progress)}% abgeschlossen</p>
-                <Progress value={progress} className="w-full [&>*]:bg-blue-600" />
+                <Progress value={progress} className="w-full [&>*]:bg-brand" />
               </div>
             </div>
 
@@ -562,7 +562,7 @@ Nutzer fragt: ${userInput}`
                   <Card key={index} className={`transition-all duration-300 ${isCompleted ? 'border-green-500 ring-1 ring-green-100' : 'hover:shadow-md'}`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <div className={`w-10 h-10 ${isCompleted ? 'bg-green-100' : 'bg-blue-600/10'} rounded-lg flex items-center justify-center`}>
+                        <div className={`w-10 h-10 ${isCompleted ? 'bg-green-100' : 'bg-brand/10'} rounded-lg flex items-center justify-center`}>
                           <ModuleIcon className={`w-5 h-5 ${isCompleted ? 'text-green-600' : themeTextClass}`} />
                         </div>
                         {isCompleted && <CheckCircle className="w-5 h-5 text-green-500" />}
@@ -647,9 +647,9 @@ Nutzer fragt: ${userInput}`
                       <div className="flex items-center justify-center h-full">
                         <div className="text-center">
                           <div className="flex items-center justify-center space-x-1 mb-2">
-                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            <div className="w-2 h-2 bg-brand/60 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-brand/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                            <div className="w-2 h-2 bg-brand/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                           </div>
                           <p className="text-sm text-gray-500">Analysiere deine Ergebnisse...</p>
                         </div>
